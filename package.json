@@ -27,7 +27,8 @@
 		"async": "0.2.9",
 		"when": "2.5.1",
 		"idgen": "*",
-		"commander": "*"
+		"commander": "*",
+		"swig": "*"
 	},
 	"engines":
 	{
