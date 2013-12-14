@@ -1,0 +1,36 @@
+{
+	"name": "LD28-DungeONE",
+	"preferGlobal": false,
+	"version": "0.0.1",
+	"author": "Guntur 'Soybean' Sarwohadi <gsarwohadi@gmail.com>",
+	"description": "LD#28 theme is You Only Get One. Idea is a RL where the player gets only one: weapon, armor, life and character! Each character is created using a twitter account and once dead, it's dead forever!",
+	"contributors": [],
+	"repository":
+	{
+		"type": "git",
+		"url": "git@github.com:gsarwohadi/ld28-dungeone.git"
+	},
+	"keywords":
+	[
+		"ludumdare",
+		"roguelike",
+		"html5",
+		"phaser"
+	],
+	"dependencies":
+	{
+		"express": "3.x.x",
+		"mysql": "2.x.x",
+		"bookshelf": "0.3.x",
+		"knex": "0.2.x",
+		"underscore": "1.4.4",
+		"async": "0.2.9",
+		"when": "2.5.1",
+		"idgen": "*",
+		"commander": "*"
+	},
+	"engines":
+	{
+		"node": ">=0.6"
+	}
+}
