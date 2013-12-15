@@ -8,14 +8,15 @@ $(document).ready(function ()
 	});
 	
 	var tiledim = 16;
-	var map;
+	var map; // the map (ROT)
 	var mapbg;
-	var tileset;
-	var walls;
-	var floors;
-	var gobjs;
-	var hero;
-	var hud;
+	var walls; // group of walls (Phaser)
+	var floors; // group of floors (Phaser)
+	var paths = []; // holds path data (ROT)
+	var gobjs; // group of game objects (Phaser)
+	var hero; // sprite of hero (Phaser)
+	var hud; // group of hud (Phaser);
+	var scheduler; // action scheduler (ROT)
 	
 	var upKey, downKey, leftKey, rightKey;
 	
@@ -27,9 +28,7 @@ $(document).ready(function ()
 	
 	function create()
 	{
-		//tileset = game.add.tileset("tiles");
-		//tileset.setCollisionRange();
-		//tileset.setCollision();
+		scheduler = new ROT.Scheduler.Simple();
 		
 		//mapbg = game.add.tileSprite(0, 0, 640, 480, "tiles", 56);
 		floors = game.add.group();
@@ -63,10 +62,12 @@ $(document).ready(function ()
 		var randRoom = map.getRooms()[randRoomIndex];
 		var halfHRoom = (randRoom.getRight() - randRoom.getLeft()) * 0.5;
 		var halfVRoom = (randRoom.getBottom() - randRoom.getTop()) * 0.5;
-		var randX = Math.round(ROT.RNG.getNormal(halfHRoom, halfHRoom * 0.5));
-		var randY = Math.round(ROT.RNG.getNormal(halfVRoom, halfVRoom * 0.5));
+		var randX = randRoom.getLeft() + Math.round(ROT.RNG.getNormal(halfHRoom, halfHRoom * 0.5));
+		var randY = randRoom.getTop() + Math.round(ROT.RNG.getNormal(halfVRoom, halfVRoom * 0.5));
 		console.log("Rand Hero X: %s. Y: %s", randX, randY);
-		hero = gobjs.create((randRoom.getLeft() + randX) * tiledim, (randRoom.getTop() + randY) * tiledim, "tiles", 190);
+		hero = gobjs.create(randX * tiledim, randY * tiledim, "tiles", 190);
+		hero.tileX = randX;
+		hero.tileY = randY;
 		hero.name = "HERO";
 		hero.body.collideWorldBounds = true;
 		
@@ -74,6 +75,8 @@ $(document).ready(function ()
 		downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
 		leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
 		rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+		
+		game.input.onDown.add(heroGoTo, this);
 	}
 	
 	function renderPath(x, y, value)
@@ -83,6 +86,8 @@ $(document).ready(function ()
 			//tile = tiles.create(x * tiledim, y * tiledim, "tiles", 56);
 		if ( !value )
 			tile = floors.create(x * tiledim, y * tiledim, "tiles", 50);
+		
+		paths[x + "," + y] = value;
 	}
 	
 	function renderRoom(room)
@@ -130,11 +135,16 @@ $(document).ready(function ()
 			console.log("  [ROOM] Doors X:%s, Y:%s", x, y);
 			tile = walls.create(x * tiledim, y * tiledim, "tiles", 1);
 			tile.body.immovable = true;
+			
+			// set this as default. when door is open, set to 0.
+			//paths[x + "," + y] = 1;
 		});
 	}
 	
 	function update()
 	{
+		/*
+		// uses physics and arrow keys
 		hero.body.velocity.x = 0;
 		hero.body.velocity.y = 0;
 		if (upKey.isDown)
@@ -147,10 +157,60 @@ $(document).ready(function ()
 			hero.body.velocity.x += tiledim;
 		
 		game.physics.collide(hero, walls, collisionHandler, null, this);
+		*/
+		
+		/*if ( game.input.mousePointer.isDown)
+		{
+			console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
+		}*/
 	}
 	
 	function collisionHandler(obj1, obj2)
 	{
 		
+	}
+	
+	function heroGoTo()
+	{
+		scheduler.clear();
+		
+		console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
+		var tileX = Math.floor(game.input.x / tiledim);
+		var tileY = Math.floor(game.input.y / tiledim);
+		console.log(" Clicked tile x: %s, y: %s", tileX, tileY);
+		
+		var passableCallback = function (x, y)
+		{
+			return (paths[x + "," + y] === 0);
+		}
+		var astar = new ROT.Path.AStar(tileX, tileY, passableCallback, { topology: 4 });
+		astar.compute(hero.tileX, hero.tileY, function (x, y)
+		{
+			console.log(" [PF] Hero go to %s, %s", x, y);
+			scheduler.add({ actor: "hero", action: "move", data: { x: x, y: y } }, true);
+		});
+		
+		processScheduler();
+	}
+	
+	function processScheduler()
+	{
+		//console.log(" [SCH] Processing scheduler!");
+		var current = scheduler.next();
+		if ( current )
+		{
+			//console.dir(current);
+			if ( current.actor == "hero" && current.action == "move" )
+			{
+				hero.x = current.data.x * tiledim;
+				hero.y = current.data.y * tiledim;
+				hero.tileX = current.data.x;
+				hero.tileY = current.data.y;
+			}
+			
+			scheduler.remove(current);
+			
+			setTimeout(processScheduler, 100);
+		}
 	}
 });
