@@ -11,14 +11,18 @@ $(document).ready(function ()
 	var map; // the map (ROT)
 	var mapbg;
 	var walls; // group of walls (Phaser)
+	var wallTileIndexes = {}; // key: tileXY, value: index
 	var floors; // group of floors (Phaser)
+	var floorTileIndexes = {}; // key: tileXY, value: index
 	var paths = []; // holds path data (ROT)
 	var gobjs; // group of game objects (Phaser)
 	var hero; // sprite of hero (Phaser)
+	var heroFOV; // fov of hero (ROT)
 	var hud; // group of hud (Phaser);
+	var astar; // astar pathfinding (ROT)
 	var scheduler; // action scheduler (ROT)
 	
-	var upKey, downKey, leftKey, rightKey;
+	//var upKey, downKey, leftKey, rightKey;
 	
 	function preload()
 	{
@@ -58,34 +62,47 @@ $(document).ready(function ()
 		
 		// HERO
 		var randRoomIndex = Math.round(ROT.RNG.getUniform() * rooms.length);
-		console.log("Rand Room: %s", randRoomIndex);
+		//console.log("Rand Room: %s", randRoomIndex);
 		var randRoom = map.getRooms()[randRoomIndex];
 		var halfHRoom = (randRoom.getRight() - randRoom.getLeft()) * 0.5;
 		var halfVRoom = (randRoom.getBottom() - randRoom.getTop()) * 0.5;
 		var randX = randRoom.getLeft() + Math.round(ROT.RNG.getNormal(halfHRoom, halfHRoom * 0.5));
 		var randY = randRoom.getTop() + Math.round(ROT.RNG.getNormal(halfVRoom, halfVRoom * 0.5));
-		console.log("Rand Hero X: %s. Y: %s", randX, randY);
+		//console.log("Rand Hero X: %s. Y: %s", randX, randY);
 		hero = gobjs.create(randX * tiledim, randY * tiledim, "tiles", 190);
 		hero.tileX = randX;
 		hero.tileY = randY;
 		hero.name = "HERO";
-		hero.body.collideWorldBounds = true;
+		//hero.body.collideWorldBounds = true;
 		
-		upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
-		downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
-		leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
-		rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+		var lightPasses = function (x, y)
+		{
+			return (paths[x + "," + y] === 0);
+		}
+		heroFOV = new ROT.FOV.PreciseShadowcasting(lightPasses);
+		renderHeroFOV();
+		
+		//upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
+		//downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
+		//leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+		//rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
 		
 		game.input.onDown.add(heroGoTo, this);
 	}
 	
 	function renderPath(x, y, value)
 	{
+		var tile;
 		//console.log(" [PATH] X:%s Y:%s VALUE:%s", x, y, value);
 		//if ( value )
 			//tile = tiles.create(x * tiledim, y * tiledim, "tiles", 56);
 		if ( !value )
-			tile = floors.create(x * tiledim, y * tiledim, "tiles", 50);
+		{
+			tile = floors.create(x * tiledim, y * tiledim, "tiles", 25);
+			tile.tileXY = x + "," + y;
+			tile.alpha = 0;
+			floorTileIndexes[tile.tileXY] = floors.getIndex(tile);
+		}
 		
 		paths[x + "," + y] = value;
 	}
@@ -99,42 +116,63 @@ $(document).ready(function ()
 		for ( var i = room.getLeft() - 1; i <= room.getRight() + 1; i++ )
 		{
 			tile = walls.create(i * tiledim, (room.getTop() - 1) * tiledim, "tiles", 12);
-			tile.body.immovable = true;
+			tile.tileXY = i + "," + (room.getTop() - 1);
+			//tile.body.immovable = true;
+			tile.alpha = 0;
+			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// bottom wall
 		for ( var i = room.getLeft() - 1; i <= room.getRight() + 1; i++ )
 		{
 			tile = walls.create(i * tiledim, (room.getBottom() + 1) * tiledim, "tiles", 12);
-			tile.body.immovable = true;
+			tile.tileXY = i + "," + (room.getBottom() + 1);
+			//tile.body.immovable = true;
+			tile.alpha = 0;
+			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// left wall
 		for ( var i = room.getTop() - 1; i <= room.getBottom() + 1; i++ )
 		{
 			tile = walls.create((room.getLeft() - 1) * tiledim, i * tiledim, "tiles", 12);
-			tile.body.immovable = true;
+			tile.tileXY = (room.getLeft() - 1) + "," + i;
+			//tile.body.immovable = true;
+			tile.alpha = 0;
+			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// right wall
 		for ( var i = room.getTop() - 1; i <= room.getBottom() + 1; i++ )
 		{
 			tile = walls.create((room.getRight() + 1) * tiledim, i * tiledim, "tiles", 12);
-			tile.body.immovable = true;
+			tile.tileXY = (room.getRight() + 1) + "," + i;
+			//tile.body.immovable = true;
+			tile.alpha = 0;
+			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		
 		// floor
-		for ( var i = room.getLeft(); i <= room.getRight(); i++ )
+		/*for ( var i = room.getLeft(); i <= room.getRight(); i++ )
 		{
 			for ( var j = room.getTop(); j <= room.getBottom(); j++ )
 			{
 				tile = floors.create(i * tiledim, j * tiledim, "tiles", 25);
-				tile.body.immovable = true;
+				tile.tileXY = i + "," + j;
+				tile.alpha = 0;
+				//tile.body.immovable = true;
+				floorTileIndexes[tile.tileXY] = floors.getIndex(tile);
 			}
-		}
+		}*/
+		
+		// test get first floor
+		//var firstfloor = floors.getAt(0);
+		//console.log(" First floor tileXY: %s, alive: %s", firstfloor.tileXY, firstfloor.alive);
 		
 		room.getDoors(function (x, y)
 		{
-			console.log("  [ROOM] Doors X:%s, Y:%s", x, y);
+			//console.log("  [ROOM] Doors X:%s, Y:%s", x, y);
 			tile = walls.create(x * tiledim, y * tiledim, "tiles", 1);
-			tile.body.immovable = true;
+			tile.tileXY = x + "," + y;
+			tile.alpha = 0;
+			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 			
 			// set this as default. when door is open, set to 0.
 			//paths[x + "," + y] = 1;
@@ -174,23 +212,50 @@ $(document).ready(function ()
 	{
 		scheduler.clear();
 		
-		console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
+		//console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
 		var tileX = Math.floor(game.input.x / tiledim);
 		var tileY = Math.floor(game.input.y / tiledim);
-		console.log(" Clicked tile x: %s, y: %s", tileX, tileY);
+		//console.log(" Clicked tile x: %s, y: %s", tileX, tileY);
 		
-		var passableCallback = function (x, y)
+		// check if tile is path
+		var hasPathOnTile = floorTileIndexes[tileX + "," + tileY];
+		if ( hasPathOnTile )
 		{
-			return (paths[x + "," + y] === 0);
+			var passableCallback = function (x, y)
+			{
+				return (paths[x + "," + y] === 0);
+			}
+			astar = new ROT.Path.AStar(tileX, tileY, passableCallback, { topology: 4 });
+			astar.compute(hero.tileX, hero.tileY, function (x, y)
+			{
+				//console.log(" [PF] Hero go to %s, %s", x, y);
+				scheduler.add({ actor: "hero", action: "move", data: { x: x, y: y } }, true);
+			});
+			processScheduler();
 		}
-		var astar = new ROT.Path.AStar(tileX, tileY, passableCallback, { topology: 4 });
-		astar.compute(hero.tileX, hero.tileY, function (x, y)
+	}
+	
+	function renderHeroFOV()
+	{
+		heroFOV.compute(hero.tileX, hero.tileY, 6, function (x, y, r, visibility)
 		{
-			console.log(" [PF] Hero go to %s, %s", x, y);
-			scheduler.add({ actor: "hero", action: "move", data: { x: x, y: y } }, true);
+			var tileXY = x + "," + y;
+			
+			var index = floorTileIndexes[tileXY];
+			if ( index )
+			{
+				var floor = floors.getAt(index);
+				if ( floor )
+					floor.alpha = visibility;
+			}
+			index = wallTileIndexes[tileXY];
+			if ( index )
+			{
+				var wall = walls.getAt(index);
+				if ( wall )
+					wall.alpha = visibility;
+			}
 		});
-		
-		processScheduler();
 	}
 	
 	function processScheduler()
@@ -206,6 +271,7 @@ $(document).ready(function ()
 				hero.y = current.data.y * tiledim;
 				hero.tileX = current.data.x;
 				hero.tileY = current.data.y;
+				renderHeroFOV();
 			}
 			
 			scheduler.remove(current);
