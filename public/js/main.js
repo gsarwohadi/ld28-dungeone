@@ -237,7 +237,7 @@ $(document).ready(function ()
 	
 	function renderHeroFOV()
 	{
-		heroFOV.compute(hero.tileX, hero.tileY, 6, function (x, y, r, visibility)
+		heroFOV.compute(hero.tileX, hero.tileY, 4, function (x, y, r, visibility)
 		{
 			var tileXY = x + "," + y;
 			
@@ -245,14 +245,14 @@ $(document).ready(function ()
 			if ( index )
 			{
 				var floor = floors.getAt(index);
-				if ( floor )
+				if ( floor && floor.alpha < visibility )
 					floor.alpha = visibility;
 			}
 			index = wallTileIndexes[tileXY];
 			if ( index )
 			{
 				var wall = walls.getAt(index);
-				if ( wall )
+				if ( wall && wall.alpha < visibility )
 					wall.alpha = visibility;
 			}
 		});
