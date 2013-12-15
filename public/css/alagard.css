@@ -1,0 +1,8 @@
+@font-face {
+    font-family: 'AlagardMedium';
+    src: url('/font/alagard/alagard.eot');
+    src: url('/font/alagard/alagard.eot') format('embedded-opentype'),
+         url('/font/alagard/alagard.woff') format('woff'),
+         url('/font/alagard/alagard.ttf') format('truetype'),
+         url('/font/alagard/alagard.svg#AlagardMedium') format('svg');
+}

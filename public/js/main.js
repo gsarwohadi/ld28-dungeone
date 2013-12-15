@@ -15,10 +15,12 @@ $(document).ready(function ()
 	var floors; // group of floors (Phaser)
 	var floorTileIndexes = {}; // key: tileXY, value: index
 	var paths = []; // holds path data (ROT)
+	var doors = []; // holds door data
 	var gobjs; // group of game objects (Phaser)
 	var hero; // sprite of hero (Phaser)
 	var heroFOV; // fov of hero (ROT)
-	var hud; // group of hud (Phaser);
+	var hud; // group of hud (Phaser)
+	var hudtext; // hud text (Phaser)
 	var astar; // astar pathfinding (ROT)
 	var scheduler; // action scheduler (ROT)
 	
@@ -27,7 +29,8 @@ $(document).ready(function ()
 	function preload()
 	{
 		game.load.image("wall", "/img/tiles/Wall2.png", tiledim, tiledim);
-		game.load.spritesheet("tiles", "/img/pubdlcnt.php.png", tiledim, tiledim);
+		game.load.spritesheet("tiles", "/img/tiles16.png", tiledim, tiledim);
+		game.load.spritesheet("smalltiles", "/img/tiles8.png", tiledim * 0.5, tiledim * 0.5);
 	}
 	
 	function create()
@@ -43,6 +46,7 @@ $(document).ready(function ()
 		walls.z = 3;
 		hud = game.add.group();
 		hud.z = 10;
+		hudtext = game.add.text(16, 1, "Health:0\nLevel:1\nExp:0", { font: "14px AlagardMedium", fill: "#ffffff" })
 		
 		// ROT map and paths
 		ROT.RNG.setSeed(1);
@@ -98,7 +102,7 @@ $(document).ready(function ()
 			//tile = tiles.create(x * tiledim, y * tiledim, "tiles", 56);
 		if ( !value )
 		{
-			tile = floors.create(x * tiledim, y * tiledim, "tiles", 25);
+			tile = floors.create(x * tiledim, y * tiledim, "tiles", 51);
 			tile.tileXY = x + "," + y;
 			tile.alpha = 0;
 			floorTileIndexes[tile.tileXY] = floors.getIndex(tile);
@@ -115,95 +119,56 @@ $(document).ready(function ()
 		// top wall
 		for ( var i = room.getLeft() - 1; i <= room.getRight() + 1; i++ )
 		{
-			tile = walls.create(i * tiledim, (room.getTop() - 1) * tiledim, "tiles", 12);
+			tile = walls.create(i * tiledim, (room.getTop() - 1) * tiledim, "tiles", 16);
 			tile.tileXY = i + "," + (room.getTop() - 1);
-			//tile.body.immovable = true;
 			tile.alpha = 0;
 			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// bottom wall
 		for ( var i = room.getLeft() - 1; i <= room.getRight() + 1; i++ )
 		{
-			tile = walls.create(i * tiledim, (room.getBottom() + 1) * tiledim, "tiles", 12);
+			tile = walls.create(i * tiledim, (room.getBottom() + 1) * tiledim, "tiles", 16);
 			tile.tileXY = i + "," + (room.getBottom() + 1);
-			//tile.body.immovable = true;
 			tile.alpha = 0;
 			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// left wall
 		for ( var i = room.getTop() - 1; i <= room.getBottom() + 1; i++ )
 		{
-			tile = walls.create((room.getLeft() - 1) * tiledim, i * tiledim, "tiles", 12);
+			tile = walls.create((room.getLeft() - 1) * tiledim, i * tiledim, "tiles", 16);
 			tile.tileXY = (room.getLeft() - 1) + "," + i;
-			//tile.body.immovable = true;
 			tile.alpha = 0;
 			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		// right wall
 		for ( var i = room.getTop() - 1; i <= room.getBottom() + 1; i++ )
 		{
-			tile = walls.create((room.getRight() + 1) * tiledim, i * tiledim, "tiles", 12);
+			tile = walls.create((room.getRight() + 1) * tiledim, i * tiledim, "tiles", 16);
 			tile.tileXY = (room.getRight() + 1) + "," + i;
-			//tile.body.immovable = true;
 			tile.alpha = 0;
 			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 		}
 		
-		// floor
-		/*for ( var i = room.getLeft(); i <= room.getRight(); i++ )
-		{
-			for ( var j = room.getTop(); j <= room.getBottom(); j++ )
-			{
-				tile = floors.create(i * tiledim, j * tiledim, "tiles", 25);
-				tile.tileXY = i + "," + j;
-				tile.alpha = 0;
-				//tile.body.immovable = true;
-				floorTileIndexes[tile.tileXY] = floors.getIndex(tile);
-			}
-		}*/
-		
-		// test get first floor
-		//var firstfloor = floors.getAt(0);
-		//console.log(" First floor tileXY: %s, alive: %s", firstfloor.tileXY, firstfloor.alive);
-		
 		room.getDoors(function (x, y)
 		{
 			//console.log("  [ROOM] Doors X:%s, Y:%s", x, y);
-			tile = walls.create(x * tiledim, y * tiledim, "tiles", 1);
+			tile = walls.create(x * tiledim, y * tiledim, "tiles", 2);
 			tile.tileXY = x + "," + y;
 			tile.alpha = 0;
 			wallTileIndexes[tile.tileXY] = walls.getIndex(tile);
 			
+			// change floor
+			var floorIndex = floorTileIndexes[tile.tileXY];
+			var floor = floors.getAt(floorIndex);
+			floor.frame = 3;
+			
 			// set this as default. when door is open, set to 0.
-			//paths[x + "," + y] = 1;
+			paths[x + "," + y] = 1;
+			doors[x + "," + y] = 1;
 		});
 	}
 	
 	function update()
-	{
-		/*
-		// uses physics and arrow keys
-		hero.body.velocity.x = 0;
-		hero.body.velocity.y = 0;
-		if (upKey.isDown)
-			hero.body.velocity.y -= tiledim;
-		else if (downKey.isDown)
-			hero.body.velocity.y += tiledim;
-		else if (leftKey.isDown)
-			hero.body.velocity.x -= tiledim;
-		else if (rightKey.isDown)
-			hero.body.velocity.x += tiledim;
-		
-		game.physics.collide(hero, walls, collisionHandler, null, this);
-		*/
-		
-		/*if ( game.input.mousePointer.isDown)
-		{
-			console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
-		}*/
-	}
-	
-	function collisionHandler(obj1, obj2)
 	{
 		
 	}
@@ -215,16 +180,59 @@ $(document).ready(function ()
 		//console.log("Mouse x: %s, y: %s", game.input.x, game.input.y);
 		var tileX = Math.floor(game.input.x / tiledim);
 		var tileY = Math.floor(game.input.y / tiledim);
+		var tileXY = tileX + "," + tileY;
 		//console.log(" Clicked tile x: %s, y: %s", tileX, tileY);
 		
 		// check if tile is path
-		var hasPathOnTile = floorTileIndexes[tileX + "," + tileY];
-		if ( hasPathOnTile )
+		var hasPathOnTile = floorTileIndexes[tileXY];
+		var passable = !paths[tileXY];
+		console.log(" [GOTO] Path %s,%s: %s. Door: %s", tileX, tileY, !paths[tileXY], doors[tileXY]);
+		
+		var passableCallback = function (x, y)
 		{
-			var passableCallback = function (x, y)
+			//console.log(" [PF] Path %s,%s = %s", x, y, paths[x+","+y]);
+			return (paths[x + "," + y] === 0);
+		}
+		
+		// check if door
+		if ( !passable && doors[tileXY] )
+		{
+			var diffX = Math.abs(hero.tileX - tileX);
+			var diffY = Math.abs(hero.tileY - tileY);
+			
+			console.log("  [GOTO] Diff %s,%s", diffX, diffY);
+			
+			if ( (diffX == 1 && diffY == 0) || (diffX == 0 && diffY == 1) )
 			{
-				return (paths[x + "," + y] === 0);
+				paths[tileXY] = 0;
+				var index = wallTileIndexes[tileXY];
+				var wall = walls.getAt(index);
+				wall.kill();
 			}
+			else
+			{
+				// door is closed and not near,
+				// update goto to go next to door.
+				var checkLeftDoor = !paths[(tileX - 1) + "," + tileY];
+				var checkRightDoor = !paths[(tileX + 1) + "," + tileY];
+				var checkUpDoor = !paths[tileX + "," + (tileY - 1)];
+				var checkDownDoor = !paths[tileX + "," + (tileY + 1)];
+				//console.log("  [GOTO] Check door left: %s, right: %s, up: %s, down: %s", checkLeftDoor, checkRightDoor, checkUpDoor, checkDownDoor);
+				var gotoX = (checkLeftDoor && checkRightDoor)? (hero.tileX < tileX)? -1 : 1 : 0;
+				var gotoY = (checkUpDoor && checkDownDoor)? (hero.tileY < tileY)? -1 : 1 : 0;
+				tileX += gotoX;
+				tileY += gotoY;
+				tileXY = tileX + "," + tileY;
+				passable = !paths[tileXY];
+				hasPathOnTile = floorTileIndexes[tileXY];
+				//console.log("  [GOTO] Update GOTO %s,%s", tileX, tileY);
+				//sconsole.log("  [GOTO] Path %s,%s: %s. Door: %s", tileX, tileY, !paths[tileXY], doors[tileXY]);
+			}
+		}
+		
+		// passable
+		if ( hasPathOnTile && passable )
+		{
 			astar = new ROT.Path.AStar(tileX, tileY, passableCallback, { topology: 4 });
 			astar.compute(hero.tileX, hero.tileY, function (x, y)
 			{
