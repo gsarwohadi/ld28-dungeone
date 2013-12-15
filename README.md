@@ -6,4 +6,10 @@ My participation for LD#28, with the theme: You Only Get One. Uses expressjs &am
 Arts used
 =========
 Tiles in the public/img/tiles folder is from http://blog.skab.fr
-Tilesheet (pubdlcnt.php.png) is from http://opengameart.org/content/16x16-fantasy-tileset
+
+Tilesheets:
+Taken from the nice work of http://opengameart.org/users/jerom:
+
+http://opengameart.org/content/16x16-fantasy-tileset
+
+http://opengameart.org/content/32x32-fantasy-tileset
