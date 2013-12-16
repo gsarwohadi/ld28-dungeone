@@ -13,3 +13,7 @@ Taken from the nice work of http://opengameart.org/users/jerom:
 http://opengameart.org/content/16x16-fantasy-tileset
 
 http://opengameart.org/content/32x32-fantasy-tileset
+
+Update - 16 December 2013
+=========================
+Turns out I've ran out of time. Haven't done any of the backed stuff yet.

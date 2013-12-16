@@ -51,7 +51,7 @@ $(document).ready(function ()
 		walls.z = 3;
 		hud = game.add.group();
 		hud.z = 10;
-		hudtext = game.add.text(16, 1, "Health:0\nLevel:1\nExp:0", { font: "14px AlagardMedium", fill: "#ffffff" })
+		hudtext = game.add.text(16, 1, "Health:10\nLevel:1\nExp:0", { font: "14px AlagardMedium", fill: "#ffffff" })
 		
 		// HUD
 		var health = hud.create(0, 0, "tiles", 250);
@@ -70,7 +70,7 @@ $(document).ready(function ()
 	function buildDungeon()
 	{
 		// ROT map and paths
-		ROT.RNG.setSeed(10);
+		ROT.RNG.setSeed(100);
 		map = new ROT.Map.Digger(40, 30, { roomWidth: [5,13], roomHeight: [3,15], corridorLength: [2,4], dugPercentage: 0.5 });
 		map.create(renderPath);
 		// ROT rooms
