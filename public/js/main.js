@@ -8,6 +8,7 @@ $(document).ready(function ()
 	});
 	
 	var tiledim = 16;
+	var max_monster_per_room = 5;
 	var map; // the map (ROT)
 	var mapbg;
 	var walls; // group of walls (Phaser)
@@ -16,6 +17,10 @@ $(document).ready(function ()
 	var floorTileIndexes = {}; // key: tileXY, value: index
 	var paths = []; // holds path data (ROT)
 	var doors = []; // holds door data
+	var treasures = []; // groups of treasures
+	var monsters = []; // groups of monsters
+	var tombs = []; // holds tombs data
+	var gobjTileIndexes = {};
 	var gobjs; // group of game objects (Phaser)
 	var hero; // sprite of hero (Phaser)
 	var heroFOV; // fov of hero (ROT)
@@ -48,30 +53,54 @@ $(document).ready(function ()
 		hud.z = 10;
 		hudtext = game.add.text(16, 1, "Health:0\nLevel:1\nExp:0", { font: "14px AlagardMedium", fill: "#ffffff" })
 		
-		// ROT map and paths
-		ROT.RNG.setSeed(1);
-		map = new ROT.Map.Digger(40, 30, { roomWidth: [5,13], roomHeight: [3,7], corridorLength: [4,8], dugPercentage: 0.6 });
-		map.create(renderPath);
-		// ROT rooms
-		var rooms = map.getRooms();
-		for ( var i = 0; i < rooms.length; i++ )
-		{
-			var room = rooms[i];
-			renderRoom(room);
-		}
-		
 		// HUD
 		var health = hud.create(0, 0, "tiles", 250);
 		health.fixedToCamera = true;
 		
+		// INPUT
+		//upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
+		//downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
+		//leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+		//rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+		game.input.onDown.add(heroGoTo, this);
+		
+		buildDungeon();
+	}
+	
+	function buildDungeon()
+	{
+		// ROT map and paths
+		ROT.RNG.setSeed(10);
+		map = new ROT.Map.Digger(40, 30, { roomWidth: [5,13], roomHeight: [3,15], corridorLength: [2,4], dugPercentage: 0.5 });
+		map.create(renderPath);
+		// ROT rooms
+		var rooms = map.getRooms();
+		var heroRoomIndex = Math.round(ROT.RNG.getUniform() * (rooms.length - 1));
+		for ( var i = 0; i < rooms.length; i++ )
+		{
+			var room = rooms[i];
+			renderRoom(room);
+			
+			if (i != heroRoomIndex)
+			{
+				// MONSTERS
+				spawnMonster(room);
+				
+				// TREASURES
+				
+			}
+		}
+		
+		// TOMBS
+		
 		// HERO
-		var randRoomIndex = Math.round(ROT.RNG.getUniform() * rooms.length);
-		//console.log("Rand Room: %s", randRoomIndex);
-		var randRoom = map.getRooms()[randRoomIndex];
-		var halfHRoom = (randRoom.getRight() - randRoom.getLeft()) * 0.5;
-		var halfVRoom = (randRoom.getBottom() - randRoom.getTop()) * 0.5;
-		var randX = randRoom.getLeft() + Math.round(ROT.RNG.getNormal(halfHRoom, halfHRoom * 0.5));
-		var randY = randRoom.getTop() + Math.round(ROT.RNG.getNormal(halfVRoom, halfVRoom * 0.5));
+		//console.log("Hero Room: %s. Rooms: %s", heroRoomIndex, rooms.length);
+		var heroRoom = rooms[heroRoomIndex];
+		//console.log("Hero room: %s", heroRoom);
+		var halfHRoom = (heroRoom.getRight() - heroRoom.getLeft()) * 0.5;
+		var halfVRoom = (heroRoom.getBottom() - heroRoom.getTop()) * 0.5;
+		var randX = heroRoom.getLeft() + Math.round(ROT.RNG.getNormal(halfHRoom, halfHRoom * 0.5));
+		var randY = heroRoom.getTop() + Math.round(ROT.RNG.getNormal(halfVRoom, halfVRoom * 0.5));
 		//console.log("Rand Hero X: %s. Y: %s", randX, randY);
 		hero = gobjs.create(randX * tiledim, randY * tiledim, "tiles", 190);
 		hero.tileX = randX;
@@ -85,13 +114,6 @@ $(document).ready(function ()
 		}
 		heroFOV = new ROT.FOV.PreciseShadowcasting(lightPasses);
 		renderHeroFOV();
-		
-		//upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
-		//downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
-		//leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
-		//rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
-		
-		game.input.onDown.add(heroGoTo, this);
 	}
 	
 	function renderPath(x, y, value)
@@ -168,6 +190,30 @@ $(document).ready(function ()
 		});
 	}
 	
+	function spawnMonster(room)
+	{
+		// tile range: 200 - 229
+		var monster_count = Math.floor(Math.random() * max_monster_per_room);
+		console.log("MONSTER COUNT: %s", monster_count);
+		for ( var i = 0; i < monster_count; i++ )
+		{
+			var randX = room.getLeft() + Math.floor(ROT.RNG.getUniform() * (room.getRight() - room.getLeft()));
+			var randY = room.getTop() + Math.floor(ROT.RNG.getUniform() * (room.getBottom() - room.getTop()));
+			var randType = 200 + Math.floor(ROT.RNG.getUniform() * (229 - 200));
+			var monster = gobjs.create(randX * tiledim, randY * tiledim, "tiles", randType);
+			monster.tileX = randX;
+			monster.tileY = randY;
+			monster.tileXY = monster.tileX + "," + monster.tileY;
+			monster.alpha = 0;
+			gobjTileIndexes[monster.tileXY] = gobjs.getIndex(monster);
+		}
+	}
+	
+	function spawnTreasure()
+	{
+		
+	}
+	
 	function update()
 	{
 		
@@ -231,7 +277,7 @@ $(document).ready(function ()
 		}
 		
 		// passable
-		if ( hasPathOnTile && passable )
+		if ( hero && hasPathOnTile && passable )
 		{
 			astar = new ROT.Path.AStar(tileX, tileY, passableCallback, { topology: 4 });
 			astar.compute(hero.tileX, hero.tileY, function (x, y)
@@ -245,25 +291,35 @@ $(document).ready(function ()
 	
 	function renderHeroFOV()
 	{
-		heroFOV.compute(hero.tileX, hero.tileY, 4, function (x, y, r, visibility)
+		if ( hero )
 		{
-			var tileXY = x + "," + y;
-			
-			var index = floorTileIndexes[tileXY];
-			if ( index )
+			heroFOV.compute(hero.tileX, hero.tileY, 4, function (x, y, r, visibility)
 			{
-				var floor = floors.getAt(index);
-				if ( floor && floor.alpha < visibility )
-					floor.alpha = visibility;
-			}
-			index = wallTileIndexes[tileXY];
-			if ( index )
-			{
-				var wall = walls.getAt(index);
-				if ( wall && wall.alpha < visibility )
-					wall.alpha = visibility;
-			}
-		});
+				var tileXY = x + "," + y;
+				
+				var index = floorTileIndexes[tileXY];
+				if ( index )
+				{
+					var floor = floors.getAt(index);
+					if ( floor && floor.alpha < visibility )
+						floor.alpha = visibility;
+				}
+				index = wallTileIndexes[tileXY];
+				if ( index )
+				{
+					var wall = walls.getAt(index);
+					if ( wall && wall.alpha < visibility )
+						wall.alpha = visibility;
+				}
+				index = gobjTileIndexes[tileXY];
+				if ( index )
+				{
+					var gobj = gobjs.getAt(index);
+					//if ( gobj && gobj.alpha < visibility )
+					gobj.alpha = visibility;
+				}
+			});
+		}
 	}
 	
 	function processScheduler()
